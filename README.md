@@ -7,5 +7,5 @@ Data used by this app can be found in this repository: https://github.com/erikga
 he following command will download and run the application:
 
 ``` R
-Shiny::runGitHub("dkpol-barometer", "Straubinger")
+shiny::runGitHub("dkpol-barometer", "Straubinger")
 ```
