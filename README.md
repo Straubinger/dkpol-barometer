@@ -4,7 +4,7 @@ Shiny app for plotting opinion polls on public support for political parties in 
 
 Data used by this app can be found in this repository: https://github.com/erikgahner/polls
 
-he following command will download and run the application:
+The following command will download and run the application:
 
 ``` R
 shiny::runGitHub("dkpol-barometer", "Straubinger")
