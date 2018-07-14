@@ -127,11 +127,21 @@ ui <- fluidPage(
       # Input: Select or deselect smoothed conditional means (geom_smooth) ----
       checkboxInput("trend", strong("Trendlinjer for partier"), value = TRUE),
       
+      # Input: Select confidence interval, conditional on trendline ----
+      conditionalPanel(condition = "input.trend == true",
+                       selectInput("ci",
+                                   label = "Konfidensinterval",
+                                   selected = "0.95",
+                                   choice = c("Intet", "0.90", "0.95", "0.99"))
+                       ),
+
       #  Input: Select or deselect facetting ----
       checkboxInput("facet", strong("Opdel graf på partier"), value = FALSE),
       
-      #  Input: Select or deselect free y-axis on facets ----
-      checkboxInput("axis", strong("Frigør y-akse ved opdeling"), value = FALSE),
+      #  Input: Select or deselect free y-axis on facets, conditional on facet = true ----
+      conditionalPanel(condition = "input.facet == true",
+                       checkboxInput("axis", strong("Frigør y-akse ved opdeling"), value = FALSE)
+      ),
       
       tags$hr(),
       
@@ -154,11 +164,11 @@ ui <- fluidPage(
       
       # Output: Tabset w/ plots and tables ----
       tabsetPanel(type = "tabs",
-                  tabPanel("Målinger", plotOutput("pollPlot", height = "700px")),
-                  tabPanel("Hus-effekter", plotOutput("housePlot", height = "700px")),
+                  tabPanel("Målinger", plotOutput("pollPlot", height = "720px")),
+                  tabPanel("Hus-effekter", plotOutput("housePlot", height = "720px")),
                   tabPanel("Tabel", DTOutput("table"))
-      )
-    )
+      ),
+    width = 8)   # select width out of 12 units
   )
 )
 
@@ -196,7 +206,7 @@ server <- function(input, output) {
     if(input$facet & input$trend & input$axis) {
       ggplot(dta_poll(), aes(dato, pct)) +
         geom_point(size = size_dot, aes(colour = pollingfirm)) + 
-        geom_smooth(se = F, size=size_trend) + 
+        geom_smooth(size=size_trend, level = as.numeric(input$ci)) + 
         facet_wrap(~party, scales = "free_y") +
         scale_colour_manual(values = house_colours) +
         labs(x = "",
@@ -210,7 +220,7 @@ server <- function(input, output) {
     else if(input$facet & input$trend) {
       ggplot(dta_poll(), aes(dato, pct)) +
         geom_point(size = size_dot, aes(colour = pollingfirm)) + 
-        geom_smooth(se = F, size=size_trend) + 
+        geom_smooth(size=size_trend, level = as.numeric(input$ci)) + 
         facet_wrap(~party) +
         scale_colour_manual(values = house_colours) +
         labs(x = "",
@@ -250,7 +260,7 @@ server <- function(input, output) {
     else if(input$trend) {
       ggplot(dta_poll(), aes(dato, pct, colour = party, fill = party)) +
         geom_point(size = size_dot, alpha = level_alpha, stroke = NA) + 
-        geom_smooth(se = F, size=size_trend) +
+        geom_smooth(se = T, size=size_trend, level = as.numeric(input$ci)) +
         scale_colour_manual(values = colours) +
         labs(x = "",
              y = "Stemmer (%)", 
@@ -303,7 +313,7 @@ server <- function(input, output) {
   })
   
   # Generate table ----
-  output$table <- renderDT(dta_tbl(), options = list(searching = FALSE, pageLength = 15))
+  output$table <- renderDT(dta_tbl(), options = list(order = list(1, 'desc'), searching = FALSE, pageLength = 15))
   
 }
 
