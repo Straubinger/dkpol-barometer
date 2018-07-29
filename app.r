@@ -5,6 +5,7 @@ library(RCurl)
 library(tidyverse)
 library(shiny)
 library(DT)
+library(shinythemes)
 
 # Load dataset from GitHub ----
 dta <- read.csv(text=getURL("https://raw.githubusercontent.com/erikgahner/polls/master/polls.csv"))
@@ -37,9 +38,9 @@ party.name <- unique(dta$party)
 firm.name <- unique(dta$pollingfirm)
 
 # Create vector for party colours ----
-colours <- c("#ff0000", "#712f87", "#4aa127", "#103021", "#f50896", "#fd7322", "#e74310", "#f4b912", "#065bb2",
+party_colours <- c("#ff0000", "#712f87", "#4aa127", "#103021", "#f50896", "#fd7322", "#e74310", "#f4b912", "#065bb2",
              "#980000", "#78c31e")
-names(colours) <- c("Socialdemokratiet", "Radikale Venstre", "Konservative", "Nye Borgerlige", "SF", "Liberal Alliance",
+names(party_colours) <- c("Socialdemokratiet", "Radikale Venstre", "Konservative", "Nye Borgerlige", "SF", "Liberal Alliance",
                    "Kristendemokraterne", "Dansk Folkeparti", "Venstre", "Enhedslisten", "Alternativet")
 
 # Create vector for polling firm colours, colour blind palette ----
@@ -56,8 +57,7 @@ level_alpha <- 0.5    # alpha level
 # Define pollPlot theme ----
 theme_polls <- function() {
   theme_bw() +
-    theme(legend.title = element_blank(),
-          panel.border = element_blank(),
+    theme(panel.border = element_blank(),
           panel.grid.minor = element_blank(),
           axis.line.x = element_line("black"),
           plot.title = element_text(size = 26, margin = margin(t = 20, b = 10)),
@@ -65,13 +65,18 @@ theme_polls <- function() {
           axis.title.y = element_text(size = size_text, margin = margin(r = 10)),
           axis.text.x = element_text(size = size_text, margin = margin(t = 10)),
           axis.text.y = element_text(size = size_text, margin = margin(r = 10)),
+          legend.title = element_blank(),
           legend.text = element_text(size = size_text),
-          legend.position = "bottom",
-          strip.text = element_text(size = size_text, colour = "black"))
+          legend.key.size = unit(0.8, "cm"),
+          strip.text = element_text(size = size_text, colour = "black"),
+          axis.ticks = element_blank())
 }
 
 ## Define UI for DKpol Barometer app ----
 ui <- fluidPage(
+  
+  # Shiny theme: Spacelab ----
+  theme = shinytheme("spacelab"),
   
   # App title ----
   tags$div(
@@ -90,7 +95,7 @@ ui <- fluidPage(
       tags$div(
         HTML("Denne app giver mulighed for at følge danske partiers udvikling i meningsmålingerne 
              for perioden 2010 og frem. Desuden kan ses hus-effekter dvs. det enkelte instituts 
-             over-/undervurdring af partierne ift. gennemsnittet af samtlige målinger i perioden.")
+             over-/undervurdring af partierne ift. gennemsnittet af samtlige målinger i  den valgte periode.")
         ),
       
       br(),
@@ -135,10 +140,10 @@ ui <- fluidPage(
                                    choice = c("Intet", "0.90", "0.95", "0.99"))
                        ),
 
-      #  Input: Select or deselect facetting ----
+      #  Input: Select or deselect faceting ----
       checkboxInput("facet", strong("Opdel graf på partier"), value = FALSE),
       
-      #  Input: Select or deselect free y-axis on facets, conditional on facet = true ----
+      #  Input: Select or deselect free y-axis on facets, conditional on faceting ----
       conditionalPanel(condition = "input.facet == true",
                        checkboxInput("axis", strong("Frigør y-akse ved opdeling"), value = FALSE)
       ),
@@ -168,7 +173,7 @@ ui <- fluidPage(
                   tabPanel("Hus-effekter", plotOutput("housePlot", height = "720px")),
                   tabPanel("Tabel", DTOutput("table"))
       ),
-    width = 8)   # select width out of 12 units
+    width = 9)   # select width out of 12 units
   )
 )
 
@@ -261,7 +266,8 @@ server <- function(input, output) {
       ggplot(dta_poll(), aes(dato, pct, colour = party, fill = party)) +
         geom_point(size = size_dot, alpha = level_alpha, stroke = NA) + 
         geom_smooth(se = T, size=size_trend, level = as.numeric(input$ci)) +
-        scale_colour_manual(values = colours) +
+        scale_colour_manual(values = party_colours) +
+        scale_fill_manual(values = party_colours) +
         labs(x = "",
              y = "Stemmer (%)", 
              title = "Opbakning til udvalgte partier",
@@ -273,7 +279,7 @@ server <- function(input, output) {
     else {
       ggplot(dta_poll(), aes(dato, pct, colour = party, fill = party)) +
         geom_point(size = size_dot, alpha = level_alpha, stroke = NA) +
-        scale_colour_manual(values = colours) +
+        scale_colour_manual(values = party_colours) +
         labs(x = "",
              y = "Stemmer (%)", 
              title = "Opbakning til udvalgte partier",
@@ -289,7 +295,7 @@ server <- function(input, output) {
       geom_col() +
       facet_wrap(~party) +
       coord_flip() +
-      scale_fill_manual(values = colours) +
+      scale_fill_manual(values = party_colours) +
       theme_bw() +
       theme(legend.position = "none",
             panel.grid.major.y = element_blank(),
