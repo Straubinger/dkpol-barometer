@@ -1,326 +1,508 @@
-## Define global parameters for DKpol Barometer app ----
+#* Define global parameters ----
+
+# Install packages if not already installed ----
+if(!require(shiny))
+{install.packages("shiny")}
+if(!require(shinydashboard))
+{install.packages("shinydashboard")}
+if(!require(shinyWidgets))
+{install.packages("shinyWidgets")}
+if(!require(tidyverse))
+{install.packages("tidyverse")}
+if(!require(RCurl))
+{install.packages("RCurl")}
+if(!require(DT))
+{install.packages("DT")}
+if(!require(Cairo))
+{install.packages("Cairo")}
 
 # Load packages ----
-library(RCurl)
-library(tidyverse)
 library(shiny)
+library(shinydashboard)
+library(shinyWidgets)
+library(tidyverse)
+library(RCurl)
 library(DT)
-library(shinythemes)
+library(Cairo)
 
-# Load dataset from GitHub ----
-dta <- read.csv(text=getURL("https://raw.githubusercontent.com/erikgahner/polls/master/polls.csv"))
-
-# Format dataset ----
-dta <- dta %>% 
+# Load and restructure dataset from GitHub ----
+dta <- read.csv(text=getURL("https://raw.githubusercontent.com/erikgahner/polls/master/polls.csv")) %>% 
   mutate(dato = as.Date(paste(year, month, day, sep = "-"))) %>% 
-  select(-id, -year, -month, -day, -source) %>% 
+  select(-id, -year, -month, -day, -source)
+
+# Prepare party dataset ----
+dta.party <- dta %>% 
   gather(party, pct, party_a:party_aa) %>% 
-  mutate(ci_95 = 1.96 * sqrt(pct*(100-pct)/n)) %>% 
-  mutate(party = replace(party, party == "party_a", "Socialdemokratiet")) %>%
-  mutate(party = replace(party, party == "party_b", "Radikale Venstre")) %>%
-  mutate(party = replace(party, party == "party_c", "Konservative")) %>%
-  mutate(party = replace(party, party == "party_d", "Nye Borgerlige")) %>%
-  mutate(party = replace(party, party == "party_f", "SF")) %>%
-  mutate(party = replace(party, party == "party_i", "Liberal Alliance")) %>%
-  mutate(party = replace(party, party == "party_k", "Kristendemokraterne")) %>%
-  mutate(party = replace(party, party == "party_o", "Dansk Folkeparti")) %>%
-  mutate(party = replace(party, party == "party_v", "Venstre")) %>%
-  mutate(party = replace(party, party == "party_oe", "Enhedslisten")) %>%
-  mutate(party = replace(party, party == "party_aa", "Alternativet"))
+  mutate(party = case_when(
+    party == "party_a" ~ "Socialdemokratiet",
+    party == "party_b" ~ "Radikale Venstre",
+    party == "party_c" ~ "Konservative",
+    party == "party_d" ~ "Nye Borgerlige",
+    party == "party_e" ~ "Klaus Riskær Pedersen",
+    party == "party_f" ~ "SF",
+    party == "party_i" ~ "Liberal Alliance",
+    party == "party_k" ~ "Kristendemokraterne",
+    party == "party_o" ~ "Dansk Folkeparti",
+    party == "party_v" ~ "Venstre",
+    party == "party_oe" ~ "Enhedslisten",
+    party == "party_aa" ~ "Alternativet"))
+
+# Prepare coalition dataset ----
+dta.coalition <- dta %>%
+  mutate(rød = rowSums(select(.,party_a, party_b, party_f, party_oe, party_aa), na.rm = TRUE)) %>%
+  mutate(blå = rowSums(select(.,party_c, party_d, party_i, party_o, party_v), na.rm = TRUE)) %>% 
+  select(dato, rød, blå, pollingfirm) %>%
+  gather(coalition, pct, rød, blå) %>% 
+  mutate(coalition = case_when(
+    coalition == "rød" ~ "Rød blok",
+    coalition == "blå" ~ "Blå blok"))
 
 # Reorder parties ----
-dta$party <- factor(dta$party, levels = c("Socialdemokratiet", "Radikale Venstre", "Konservative", "Nye Borgerlige",
-                                      "SF", "Liberal Alliance", "Kristendemokraterne", "Dansk Folkeparti",
-                                      "Venstre", "Enhedslisten", "Alternativet"))
+dta.party$party <- factor(dta.party$party, levels = c("Socialdemokratiet", "Radikale Venstre", "Konservative", "Nye Borgerlige",
+                                                      "Klaus Riskær Pedersen", "SF", "Liberal Alliance", "Kristendemokraterne",
+                                                      "Dansk Folkeparti", "Venstre", "Enhedslisten", "Alternativet"))
 
 # Create vectors for party and polling firm names ----
-party.name <- unique(dta$party)
-firm.name <- unique(dta$pollingfirm)
+party.name <- unique(dta.party$party)
+firm.name <- unique(dta.party$pollingfirm)
 
 # Create vector for party colours ----
-party_colours <- c("#ff0000", "#712f87", "#4aa127", "#103021", "#f50896", "#fd7322", "#e74310", "#f4b912", "#065bb2",
-             "#980000", "#78c31e")
-names(party_colours) <- c("Socialdemokratiet", "Radikale Venstre", "Konservative", "Nye Borgerlige", "SF", "Liberal Alliance",
-                   "Kristendemokraterne", "Dansk Folkeparti", "Venstre", "Enhedslisten", "Alternativet")
+party.colours <- c("#ff0000", "#EB4295", "#0f854b", "#103021", "#914A4F", "#fd7322", "#e74310", "#f4b912", "#065bb2",
+                   "#9C1D2A", "#78c31e", "#537D7A")
+names(party.colours) <- c("Socialdemokratiet", "Radikale Venstre", "Konservative", "Nye Borgerlige", "SF", "Liberal Alliance",
+                          "Kristendemokraterne", "Dansk Folkeparti", "Venstre", "Enhedslisten", "Alternativet",
+                          "Klaus Riskær Pedersen")
 
-# Create vector for polling firm colours, colour blind palette ----
-house_colours <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000")
-names(house_colours) <- c("Epinion", "Gallup", "Greens", "Megafon", "Norstat", "Voxmeter", "Wilke", "YouGov", "Rambøll")
-
-# Define size of plot elements ----
-size_dot <- 4         # size of dots in scatter plot
-size_trend <- 1.5     # size of trendline
-size_text <- 16       # size of plot text
-level_alpha <- 0.5    # alpha level
-
-
-# Define pollPlot theme ----
-theme_polls <- function() {
-  theme_bw() +
-    theme(panel.border = element_blank(),
-          panel.grid.minor = element_blank(),
-          axis.line.x = element_line("black"),
-          plot.title = element_text(size = 26, margin = margin(t = 20, b = 10)),
-          plot.subtitle = element_text(size = 18, margin = margin(b = 20)),
-          axis.title.y = element_text(size = size_text, margin = margin(r = 10)),
-          axis.text.x = element_text(size = size_text, margin = margin(t = 10)),
-          axis.text.y = element_text(size = size_text, margin = margin(r = 10)),
-          legend.title = element_blank(),
-          legend.text = element_text(size = size_text),
-          legend.key.size = unit(0.8, "cm"),
-          strip.text = element_text(size = size_text, colour = "black"),
-          axis.ticks = element_blank())
-}
-
-## Define UI for DKpol Barometer app ----
-ui <- fluidPage(
+#* Define UI ----
+ui <- dashboardPage(
   
-  # Shiny theme: Spacelab ----
-  theme = shinytheme("spacelab"),
+  skin = "black",
   
-  # App title ----
-  tags$div(
-    tags$h1("DKpol Barometer"), 
-    tags$h3("Danske politiske meningsmålinger og hus-effekter")
+  # Header with app title and links  ----
+  dashboardHeader(title = HTML(paste(icon("poll"), "DKpol Barometer")),
+                  
+                  # Link to source code on GitHub ----
+                  tags$li(class = "dropdown",
+                          tags$a(href="https://github.com/Straubinger/dkpol-barometer", icon("github"), "|", "Kildekode")),
+                  
+                  # Link to data on GitHub ----
+                  tags$li(class = "dropdown",
+                          tags$a(href="https://github.com/erikgahner/polls", icon("github"), "|", "Datamateriale"))
+                  ),
+  
+  # Sidebar with menu items and input definitions ----
+  dashboardSidebar(
+    sidebarMenu(id = "menu",
+                menuItem("Målinger", tabName = "polls", icon = icon("line-chart"),
+                         menuSubItem("Partier", tabName = "party", icon = icon("angle-right")),
+                         menuSubItem("Blokke", tabName = "block", icon = icon("angle-right")),
+                         startExpanded = TRUE
+                         ),
+                menuItem("Hus-effekter", tabName = "house", icon = icon("building")),
+                menuItem("Tabel", tabName = "table", icon = icon("table"))
+    ),
+    hr(),
+    dateRangeInput("date",
+                   label = "Periode",
+                   start = Sys.Date() - 365, end = Sys.Date(),
+                   min = "2010-01-01", max = Sys.Date(),
+                   separator = " til ", format = "dd/mm-yyyy",
+                   language = 'da', weekstart = 1),
+    div(style = "padding-left:1em; padding-right:1em", textOutput("text_polls")),
+    br(),
+    conditionalPanel(condition = 'input.menu == "party" || input.menu == "table"',
+                     selectInput("party",
+                                 label = "Partier",
+                                 selected = c("Socialdemokratiet", "Radikale Venstre", "Konservative", 
+                                              "Nye Borgerlige", "SF", "Liberal Alliance",
+                                              "Dansk Folkeparti", "Venstre", "Enhedslisten", 
+                                              "Alternativet"), 
+                                 choices = party.name,
+                                 multiple = TRUE)
+                     ),
+    conditionalPanel(condition = 'input.menu == "party" || input.menu == "block" || input.menu == "table"',
+                     selectInput("firm",
+                                 label = "Institutter",
+                                 selected = c("Megafon", "Gallup", "Greens", "Rambøll", "YouGov",
+                                              "Voxmeter", "Epinion", "Norstat", "Wilke"),
+                                 choices = firm.name,
+                                 multiple = TRUE)
+                     ),
+    conditionalPanel(condition = 'input.menu == "block"',
+                     HTML(paste("<br> <li> Rød blok: Socialdemokratiet, Radikale Venstre, SF, Enhedslisten, Alternativet </li>
+                                <br> <li> Blå blok: Venstre, Konservative, Dansk Folkeparti, Liberal Alliance, Nye Borgerlige
+                                </li>")),
+                     style = "padding-left:1em"),
+    helpText("Udviklet af ", 
+             a("@StraubingerDK", href = "https://twitter.com/straubingerdk"),
+             style = "padding-left:1em; padding-right:1em; bottom:1em; position:absolute"),
+    width = 300
   ),
   
-  br(), 
+  # Body with output definitions ----
+  dashboardBody(
+    tags$head(
+      tags$style(HTML('body {font-family: Verdana;}')),
+      tags$style(HTML('.rightAlign{margin-left: 1360px;}'))
+    ),
   
-  # Sidebar layout with input and output definitions ----
-  sidebarLayout(
-    
-    # Sidebar panel for inputs ----
-    sidebarPanel(
+    tabItems(
       
-      tags$div(
-        HTML("Denne app giver mulighed for at følge danske partiers udvikling i meningsmålingerne 
-             for perioden 2010 og frem. Desuden kan ses hus-effekter dvs. det enkelte instituts 
-             over-/undervurdring af partierne ift. gennemsnittet af samtlige målinger i  den valgte periode.")
-        ),
-      
-      br(),
-      
-      # Input: Select date range ----
-      dateRangeInput("date",
-                     label = "Periode (2010-)",
-                     start = Sys.Date() - 365, end = Sys.Date(),
-                     min = "2010-01-01", max = Sys.Date(),
-                     separator = " til ", format = "dd/mm/yyyy",
-                     language = 'da', weekstart = 1),
-      
-      # Input: Select parties ---
-      selectInput("party", 
-                  label = "Partier",
-                  selected = c("Venstre", "Socialdemokratiet"), 
-                  choices = party.name,
-                  multiple = TRUE),
-
-      # Input: Select polling firms
-      selectInput("firm", 
-                  label = "Institutter",
-                  selected = c("Megafon", "Gallup", "Greens", "Rambøll", "YouGov",
-                               "Voxmeter", "Epinion", "Norstat", "Wilke"),
-                  choices = firm.name,
-                  multiple = TRUE),
-      
-      tags$hr(),
-      
-      tags$em("Benyttes kun under fanen 'Målinger'"),
-      
-      br(),
-
-      # Input: Select or deselect smoothed conditional means (geom_smooth) ----
-      checkboxInput("trend", strong("Trendlinjer for partier"), value = TRUE),
-      
-      # Input: Select confidence interval, conditional on trendline ----
-      conditionalPanel(condition = "input.trend == true",
-                       selectInput("ci",
-                                   label = "Konfidensinterval",
-                                   selected = "0.95",
-                                   choice = c("Intet", "0.90", "0.95", "0.99"))
-                       ),
-
-      #  Input: Select or deselect faceting ----
-      checkboxInput("facet", strong("Opdel graf på partier"), value = FALSE),
-      
-      #  Input: Select or deselect free y-axis on facets, conditional on faceting ----
-      conditionalPanel(condition = "input.facet == true",
-                       checkboxInput("axis", strong("Frigør y-akse ved opdeling"), value = FALSE)
-      ),
-      
-      tags$hr(),
-      
-      # Links to source code and dataset on GitHub ----
-      
-      tags$em("Kode og data"),
-      
-      tags$ul(
-        tags$li(HTML(paste(tags$a(href="https://github.com/Straubinger/dkpol-barometer", "Kildekode"),"af", 
-                     tags$a(href="https://twitter.com/straubingerdk", "@straubingerdk"), sep = " "))),
-        tags$li(HTML(paste(tags$a(href="https://github.com/erikgahner/polls", "Datamateriale"),"indsamlet af", 
-                           tags$a(href="https://twitter.com/erikgahner", "@erikgahner"), sep = " ")))
-      ),
-      
-      
-    width = 3),   # select width out of 12 units
-    
-    # Main panel for displaying outputs ----
-    mainPanel(
-      
-      # Output: Tabset w/ plots and tables ----
-      tabsetPanel(type = "tabs",
-                  tabPanel("Målinger", plotOutput("pollPlot", height = "720px")),
-                  tabPanel("Hus-effekter", plotOutput("housePlot", height = "720px")),
-                  tabPanel("Tabel", DTOutput("table"))
-      ),
-    width = 9)   # select width out of 12 units
+      tabItem(tabName = "party",
+              fluidRow(
+                column(width = 12,
+                       box(
+                         dropdownButton(
+                           
+                           awesomeRadio(inputId = "id01",
+                                        label = "Graftype",
+                                        choices = c("Samlet graf", "Graf opdelt på partier", "Markering af institutter"),
+                                        selected = "Samlet graf"),
+                           switchInput(inputId = "id03",
+                                       label = "95%-konfidensinterval",
+                                       value = FALSE,
+                                       onLabel = "Ja",
+                                       offLabel = "Nej",
+                                       size = "mini",
+                                       handleWidth = 60),
+                           
+                           circle = TRUE, icon = icon("bars"), size = "sm",
+                           tooltip = tooltipOptions(title = "Valg af graftype")),
+                         plotOutput("pollPlot", height = "750px"),
+                         width = NULL, solidHeader = TRUE)
+                       )
+                )
+              ),
+      tabItem(tabName = "block",
+              fluidRow(
+                column(width = 12,
+                       box(
+                         dropdownButton(
+                           
+                           awesomeRadio(inputId = "id02",
+                                        label = "Graftype",
+                                        choices = c("Samlet graf", "Graf opdelt på blokke", "Markering af institutter"),
+                                        selected = "Samlet graf"),
+                           switchInput(inputId = "id04",
+                                       label = "95%-konfidensinterval",
+                                       value = FALSE,
+                                       onLabel = "Ja",
+                                       offLabel = "Nej",
+                                       size = "mini",
+                                       handleWidth = 60),
+                           
+                         circle = TRUE, icon = icon("bars"), size = "sm",
+                         tooltip = tooltipOptions(title = "Valg af graftype")),
+                         plotOutput("coalPlot", height = "750px"),
+                         width = NULL, solidHeader = TRUE)
+                       )
+                )
+              ),
+      tabItem(tabName = "house",
+              fluidRow(
+                column(width = 12,
+                       box(
+                         plotOutput("housePlot", height = "780px"),
+                         width = NULL, solidHeader = TRUE)
+                       )
+                )
+              ),
+      tabItem(tabName = "table",
+              fluidRow(
+                column(width = 12,
+                       box(DTOutput("table"), width = NULL, solidHeader = TRUE)
+                       )
+                )
+              )
+      )
+    )
   )
-)
 
-## Define server logic for DKpol Barometer app ----
+#* Define server logic ----
 server <- function(input, output) {
   
-  # Subset data on party, polling firm and date input ----
-  dta_poll <- reactive({
-    dta %>% filter(party %in% input$party & pollingfirm %in% input$firm & 
-               dato >= input$date[1] & dato <= input$date[2])
+  options(shiny.usecairo=TRUE)
+
+  # Number of polls in chosen date interval ----
+  n_polls <- reactive({
+    dta %>% filter(dato >= input$date[1] & dato <= input$date[2]) %>%
+      nrow()
+  })
+  
+  # Subset party data on party, polling firm and date input ----
+  dta.poll <- reactive({
+    dta.party %>% filter(party %in% input$party & pollingfirm %in% input$firm & 
+                     dato >= input$date[1] & dato <= input$date[2])
+  })
+  
+  # Subset coalition data on polling firm and date input ----
+  dta.coal <- reactive({
+    dta.coalition %>% filter(pollingfirm %in% input$firm & 
+                               dato >= input$date[1] & dato <= input$date[2])
   })
   
   # Subset and calculate data to plot house effects ----
-  dta_house <- reactive({
-    dta %>% filter(dato >= input$date[1] & dato <= input$date[2]) %>%
-      group_by(pollingfirm, party) %>% 
-      summarise(mean_firm = mean(pct, na.rm = TRUE)) %>% 
+  dta.house <- reactive({
+    dta.party %>% filter(dato >= input$date[1] & dato <= input$date[2]) %>%
       group_by(party) %>% 
-      mutate(mean_party = mean(mean_firm, na.rm = TRUE)) %>% 
-      mutate(diff = round(mean_firm-mean_party, digits = 2)) %>% 
-      filter(party %in% input$party & pollingfirm %in% input$firm)
+      mutate(mean.party = mean(pct, na.rm = TRUE)) %>%
+      group_by(party, pollingfirm) %>% 
+      mutate(mean.firm = mean(pct, na.rm = TRUE)) %>% 
+      add_count(party, pollingfirm, name = "n_polls") %>% 
+      select(-n, -dato, -pct) %>% 
+      distinct() %>% 
+      mutate(diff = mean.firm-mean.party) %>% 
+      mutate(error = qnorm(0.975)*2/sqrt(n_polls)) %>% 
+      mutate(left = diff-error) %>% 
+      mutate(right = diff+error) %>% 
+      mutate(sign = case_when(left >= 0 & right >= 0 ~ "positive",
+                              left < 0 & right < 0 ~ "negative",
+                              (left >= 0 & right < 0) | (left < 0 & right >= 0) ~ "none"))
   })
 
-  # Subset data to create table output ----
-  dta_tbl <- reactive({
-    dta %>% filter(party %in% input$party & pollingfirm %in% input$firm & 
-                     dato >= input$date[1] & dato <= input$date[2]) %>% 
-    select(dato, pollingfirm, party, pct) %>% 
-    rename(Dato = dato, Institut = pollingfirm, Parti = party, Procent = pct) %>% 
-    spread(Parti, Procent)
+  # Subset data to create party table output ----
+  dta.tbl <- reactive({
+    dta.party %>% filter(party %in% input$party & pollingfirm %in% input$firm & 
+                           dato >= input$date[1] & dato <= input$date[2]) %>% 
+      select(dato, pollingfirm, party, pct, n) %>% 
+      rename(Dato = dato, Institut = pollingfirm, Parti = party, Procent = pct, Respondenter = n) %>% 
+      spread(Parti, Procent)
+  })
+
+  # Text output with number of polls ----
+  output$text_polls <- renderText({
+    paste("Antal målinger i perioden:", n_polls())
   })
   
   # Generate pollPlot ----
+  p1 <- reactive({ 
+    ggplot(dta.poll(), aes(dato, pct)) +
+      labs(title = "Danske partiers udvikling i meningsmålingerne",
+           subtitle = paste("Periode:", format(input$date[1], "%d/%m-%Y"), "til", format(input$date[2], "%d/%m-%Y")),
+           x = "",
+           y = "Stemmer (%)",
+           caption = "DKpol Barometer / @StraubingerDK
+                     Data: github.com/erikgahner/polls") +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 25),
+            plot.subtitle = element_text(size = 18, margin = margin(t = 8, r = 0, b = 16, l = 0)),
+            plot.caption = element_text(size = 12, colour = "gray20"),
+            axis.text = element_text(size = 14),
+            axis.title.y = element_text(size = 14, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+            legend.title = element_blank(),
+            legend.text = element_text(size = 14),
+            legend.key.size = unit(2, "line"),
+            legend.justification = "bottom",
+            strip.text = element_text(size = 14),
+            plot.margin = margin(0.5,0.5,0.5,0.5, "cm")
+            )
+  })
+  
   output$pollPlot <- renderPlot({
-    if(input$facet & input$trend & input$axis) {
-      ggplot(dta_poll(), aes(dato, pct)) +
-        geom_point(size = size_dot, aes(colour = pollingfirm)) + 
-        geom_smooth(size=size_trend, level = as.numeric(input$ci)) + 
-        facet_wrap(~party, scales = "free_y") +
-        scale_colour_manual(values = house_colours) +
-        labs(x = "",
-             y = "Stemmer (%)", 
-             title = "Opbakning til udvalgte partier",
-             subtitle = paste("Periode:", format(as.Date(input$date[1]), "%d/%m-%Y"), 
-                              "til", format(as.Date(input$date[2]), "%d/%m-%Y"), sep = " ")) +
-        theme_polls()
+    
+    if(input$id01 == "Samlet graf" & input$id03 == "FALSE") {
+      plot(p1() +
+             geom_point(aes(colour = party), alpha = 0.3, stroke = NA) +
+             geom_smooth(aes(colour = party), se = FALSE, method = "loess") +
+             scale_colour_manual(values = party.colours)
+           )
+    }
+
+    else if(input$id01 == "Graf opdelt på partier" & input$id03 == "FALSE") {
+      plot(p1() +
+             geom_point(aes(colour = party), size = 2, alpha = 0.3) +
+             geom_smooth(aes(colour = party), se = FALSE, method = "loess") +
+             scale_colour_manual(values = party.colours) +
+             facet_wrap(~party) +
+             theme(legend.position = "none")
+           )
+    }
+
+    else if(input$id01 == "Markering af institutter" & input$id03 == "FALSE") {
+      plot(p1() +
+             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 3) +
+             geom_smooth(se = FALSE, method = "loess", color = "grey55") +
+             scale_colour_brewer(palette="Paired") +
+             scale_shape_manual(values = c(16,0,18,2,3,4,17,1)) +
+             facet_wrap(~party, scales = "free_y")+
+             theme(axis.text = element_text(size = 12))
+           )
     }
     
-    else if(input$facet & input$trend) {
-      ggplot(dta_poll(), aes(dato, pct)) +
-        geom_point(size = size_dot, aes(colour = pollingfirm)) + 
-        geom_smooth(size=size_trend, level = as.numeric(input$ci)) + 
-        facet_wrap(~party) +
-        scale_colour_manual(values = house_colours) +
-        labs(x = "",
-             y = "Stemmer (%)", 
-             title = "Opbakning til udvalgte partier",
-             subtitle = paste("Periode:", format(as.Date(input$date[1]), "%d/%m-%Y"), 
-                              "til", format(as.Date(input$date[2]), "%d/%m-%Y"), sep = " ")) +
-        theme_polls()
+    else if(input$id01 == "Samlet graf" & input$id03 == "TRUE") {
+      plot(p1() +
+             geom_point(aes(colour = party), alpha = 0.3, stroke = NA) +
+             geom_smooth(aes(colour = party, fill = party), method = "loess") +
+             scale_colour_manual(values = party.colours) +
+             scale_fill_manual(values = party.colours)
+           )
     }
     
-    else if(input$facet & input$axis) {
-      ggplot(dta_poll(), aes(dato, pct)) +
-        geom_point(size = size_dot, aes(colour = pollingfirm)) +
-        facet_wrap(~party, scales = "free_y") +
-        scale_colour_manual(values = house_colours) +
-        labs(x = "",
-             y = "Stemmer (%)",
-             title = "Opbakning til udvalgte partier",
-             subtitle = paste("Periode:", format(as.Date(input$date[1]), "%d/%m-%Y"),
-                              "til", format(as.Date(input$date[2]), "%d/%m-%Y"), sep = " ")) +
-        theme_polls()
+    else if(input$id01 == "Graf opdelt på partier" & input$id03 == "TRUE") {
+      plot(p1() +
+             geom_point(aes(colour = party), size = 2, alpha = 0.3) +
+             geom_smooth(aes(colour = party, fill = party), method = "loess") +
+             scale_colour_manual(values = party.colours) +
+             scale_fill_manual(values = party.colours) +
+             facet_wrap(~party) +
+             theme(legend.position = "none")
+           )
     }
     
-    else if(input$facet) {
-      ggplot(dta_poll(), aes(dato, pct)) +
-        geom_point(size = size_dot, aes(colour = pollingfirm)) + 
-        facet_wrap(~party) +
-        scale_colour_manual(values = house_colours) +
-        labs(x = "",
-             y = "Stemmer (%)", 
-             title = "Opbakning til udvalgte partier",
-             subtitle = paste("Periode:", format(as.Date(input$date[1]), "%d/%m-%Y"), 
-                              "til", format(as.Date(input$date[2]), "%d/%m-%Y"), sep = " ")) +
-        theme_polls()
+    else if(input$id01 == "Markering af institutter" & input$id03 == "TRUE") {
+      plot(p1() +
+             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 3) +
+             geom_smooth(method = "loess", color = "grey55") +
+             scale_colour_brewer(palette="Paired") +
+             scale_shape_manual(values = c(16,0,18,2,3,4,17,1)) +
+             facet_wrap(~party, scales = "free_y")+
+             theme(axis.text = element_text(size = 12))
+           )
+    }
+
+  })
+  
+  # Generate coalPlot ----
+  p2 <- reactive({ 
+    ggplot(dta.coal(), aes(dato, pct)) +
+      labs(title = "Rød og blå blok i meningsmålingerne",
+           subtitle = paste("Periode:", format(input$date[1], "%d/%m-%Y"), "til", format(input$date[2], "%d/%m-%Y")),
+           x = "",
+           y = "Stemmer (%)",
+           caption = "Rød blok: Socialdemokratiet, Radikale Venstre, SF, Enhedslisten, Alternativet
+            Blå blok: Venstre, Konservative, Dansk Folkeparti, Liberal Alliance, Nye Borgerlige
+
+            DKpol Barometer / @StraubingerDK
+           Data: github.com/erikgahner/polls") +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 25),
+            plot.subtitle = element_text(size = 18, margin = margin(t = 8, r = 0, b = 16, l = 0)),
+            plot.caption = element_text(size = 12, colour = "gray20"),
+            axis.text = element_text(size = 14),
+            axis.title.y = element_text(size = 14, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+            legend.title = element_blank(),
+            legend.text = element_text(size = 14),
+            legend.key.size = unit(2, "line"),
+            legend.justification = "bottom",
+            strip.text = element_text(size = 14),
+            plot.margin = margin(0.5,0.5,0.5,0.5, "cm")
+            )
+  })
+  
+  output$coalPlot <- renderPlot({
+    
+    if(input$id02 == "Samlet graf" & input$id04 == "FALSE") {
+      plot(p2() +
+             geom_point(aes(colour = coalition), alpha = 0.3, stroke = NA) +
+             geom_smooth(aes(colour = coalition), se = FALSE, method = "loess") +
+             geom_hline(yintercept = 50, colour="#990000", linetype="dashed") +
+             scale_colour_manual(values = c("blue", "red"))
+           )
     }
     
-    else if(input$trend) {
-      ggplot(dta_poll(), aes(dato, pct, colour = party, fill = party)) +
-        geom_point(size = size_dot, alpha = level_alpha, stroke = NA) + 
-        geom_smooth(se = T, size=size_trend, level = as.numeric(input$ci)) +
-        scale_colour_manual(values = party_colours) +
-        scale_fill_manual(values = party_colours) +
-        labs(x = "",
-             y = "Stemmer (%)", 
-             title = "Opbakning til udvalgte partier",
-             subtitle = paste("Periode:", format(as.Date(input$date[1]), "%d/%m-%Y"), 
-                              "til", format(as.Date(input$date[2]), "%d/%m-%Y"), sep = " ")) +
-        theme_polls()
+    else if(input$id02 == "Graf opdelt på blokke" & input$id04 == "FALSE") {
+      plot(p2() +
+             geom_point(aes(colour = coalition), alpha = 0.3, stroke = NA) +
+             geom_smooth(aes(colour = coalition), se = FALSE, method = "loess") +
+             geom_hline(yintercept = 50, colour="#990000", linetype="dashed") +
+             scale_colour_manual(values = c("blue", "red")) +
+             facet_wrap(~coalition) +
+             theme(legend.position = "none")
+           )
     }
     
-    else {
-      ggplot(dta_poll(), aes(dato, pct, colour = party, fill = party)) +
-        geom_point(size = size_dot, alpha = level_alpha, stroke = NA) +
-        scale_colour_manual(values = party_colours) +
-        labs(x = "",
-             y = "Stemmer (%)", 
-             title = "Opbakning til udvalgte partier",
-             subtitle = paste("Periode:", format(as.Date(input$date[1]), "%d/%m-%Y"), 
-                              "til", format(as.Date(input$date[2]), "%d/%m-%Y"), sep = " ")) +
-        theme_polls()
+    else if(input$id02 == "Markering af institutter" & input$id04 == "FALSE") {
+      plot(p2() +
+             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 3) +
+             geom_smooth(se = FALSE, method = "loess", color = "grey55") +
+             scale_colour_brewer(palette="Paired") +
+             scale_shape_manual(values = c(16,0,18,2,3,4,17,1)) +
+             facet_wrap(~coalition, scales = "free_y")
+           )
+    }
+    
+    else if(input$id02 == "Samlet graf" & input$id04 == "TRUE") {
+      plot(p2() +
+             geom_point(aes(colour = coalition), alpha = 0.3, stroke = NA) +
+             geom_smooth(aes(colour = coalition, fill = coalition), method = "loess") +
+             geom_hline(yintercept = 50, colour="#990000", linetype="dashed") +
+             scale_colour_manual(values = c("blue", "red")) +
+             scale_fill_manual(values = c("blue", "red"))
+           )
+    }
+    
+    else if(input$id02 == "Graf opdelt på blokke" & input$id04 == "TRUE") {
+      plot(p2() +
+             geom_point(aes(colour = coalition), alpha = 0.3, stroke = NA) +
+             geom_smooth(aes(colour = coalition, fill = coalition), method = "loess") +
+             geom_hline(yintercept = 50, colour="#990000", linetype="dashed") +
+             scale_colour_manual(values = c("blue", "red")) +
+             scale_fill_manual(values = c("blue", "red")) +
+             facet_wrap(~coalition) +
+             theme(legend.position = "none")
+           )
+    }
+    
+    else if(input$id02 == "Markering af institutter" & input$id04 == "TRUE") {
+      plot(p2() +
+             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 3) +
+             geom_smooth(method = "loess", color = "grey55") +
+             scale_colour_brewer(palette="Paired") +
+             scale_shape_manual(values = c(16,0,18,2,3,4,17,1)) +
+             facet_wrap(~coalition, scales = "free_y")
+           )
     }
   })
   
   # Generate housePlot ----
   output$housePlot <- renderPlot({
-    ggplot(dta_house(), aes(pollingfirm, diff, fill = party)) +
-      geom_col() +
+    ggplot(dta.house(), aes(pollingfirm, diff)) +
+      geom_point(aes(colour = sign), size = 3) +
+      geom_linerange(aes(ymin = left, ymax = right, colour = sign)) +
+      geom_hline(yintercept = 0, colour="#990000", linetype="dashed") +
       facet_wrap(~party) +
-      coord_flip() +
-      scale_fill_manual(values = party_colours) +
-      theme_bw() +
-      theme(legend.position = "none",
-            panel.grid.major.y = element_blank(),
-            panel.grid.minor.y = element_blank(),
-            panel.border = element_blank(),
-            axis.line.x = element_line("black"),
-            axis.ticks.y = element_blank(),
-            plot.title = element_text(size = 26, margin = margin(t = 20, b = 10)),
-            plot.subtitle = element_text(size = 18, margin = margin(b = 20)),
-            axis.title.x = element_text(size = size_text, margin = margin(t = 15)),
-            axis.text.x = element_text(size = size_text),
-            axis.text.y = element_text(size = size_text),
-            strip.text = element_text(size = size_text, colour = "black")) +
-      labs(x = "",
-           y = "Afvigelse ift. gennemsnit for perioden (%-point)",
-           title = "Hus-effekter for udvalgte institutter og partier",
-           subtitle = paste("Periode:", format(as.Date(input$date[1]), "%d/%m-%Y"), 
-                            "til", format(as.Date(input$date[2]), "%d/%m-%Y"), sep = " ")) +
-    geom_text(aes(x = pollingfirm, y = ifelse(diff>0, diff+0.25, diff-0.25), label = diff, size = 12))
+      labs(title = "Hus-effekter for danske meningsmålingsinstitutter",
+           subtitle = paste("Periode:", format(input$date[1], "%d/%m-%Y"), "til", format(input$date[2], "%d/%m-%Y")),
+           x = "",
+           y = "Difference (%-point)",
+           caption = "Hus-effekten beregnes som diff. ml. det uvægtede gns. af det enkelte instituts målinger og det samlede uvægtede gns. for hvert parti i den angivne periode
+            Der er angivet 95%-konfidensinterval, grøn og rød angiver hhv. positiv og negativ difference, grå angiver insignifikant difference
 
-  })
+            DKpol Barometer / @StraubingerDK
+           Data: github.com/erikgahner/polls") +
+      scale_color_manual(values = c("red", "grey55", "green")) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 25),
+            plot.subtitle = element_text(size = 18, margin = margin(t = 8, r = 0, b = 16, l = 0)),
+            plot.caption = element_text(size = 12, colour = "gray20"),
+            axis.text = element_text(size = 14),
+            axis.text.x = element_text(angle = 60, hjust = 1),
+            axis.title.y = element_text(size = 14, margin = margin(t = 0, r = 20, b = 0, l = 0)),
+            legend.position = "none",
+            strip.text = element_text(size = 14),
+            plot.margin = margin(0.5,0.5,0.5,0.5, "cm")
+            )
+    
+    })
   
   # Generate table ----
-  output$table <- renderDT(dta_tbl(), options = list(order = list(1, 'desc'), searching = FALSE, pageLength = 15))
-  
+  output$table <- renderDT(dta.tbl(), 
+                           rownames = FALSE,
+                           extensions = c('Scroller', 'Buttons'),
+                           options = list(order = list(0, 'desc'), 
+                                          searching = FALSE,
+                                          deferRemder = TRUE,
+                                          scrollY = 680,
+                                          scroller = TRUE,
+                                          dom = 'frtBip',
+                                          buttons =
+                                            list(list(
+                                              extend = 'collection',
+                                              buttons = c('copy', 'excel', 'csv', 'pdf'),
+                                              text = 'Download tabel'
+                                            ))
+                                          )
+                           )
 }
 
 # Create Shiny app ----
