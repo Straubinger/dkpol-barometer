@@ -302,7 +302,7 @@ server <- function(input, output) {
     
     if(input$id01 == "Samlet graf" & input$id03 == "FALSE") {
       plot(p1() +
-             geom_point(aes(colour = party), alpha = 0.3, stroke = NA) +
+             geom_point(aes(colour = party), size = 2, alpha = 0.3) +
              geom_smooth(aes(colour = party), se = FALSE, method = "loess") +
              scale_colour_manual(values = party.colours)
            )
@@ -314,13 +314,14 @@ server <- function(input, output) {
              geom_smooth(aes(colour = party), se = FALSE, method = "loess") +
              scale_colour_manual(values = party.colours) +
              facet_wrap(~party) +
-             theme(legend.position = "none")
+             theme(legend.position = "none") +
+             theme(axis.text = element_text(size = 12))
            )
     }
 
     else if(input$id01 == "Markering af institutter" & input$id03 == "FALSE") {
       plot(p1() +
-             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 3) +
+             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 2) +
              geom_smooth(se = FALSE, method = "loess", color = "grey55") +
              scale_colour_brewer(palette="Paired") +
              scale_shape_manual(values = c(16,0,18,2,3,4,17,1)) +
@@ -331,7 +332,7 @@ server <- function(input, output) {
     
     else if(input$id01 == "Samlet graf" & input$id03 == "TRUE") {
       plot(p1() +
-             geom_point(aes(colour = party), alpha = 0.3, stroke = NA) +
+             geom_point(aes(colour = party), size = 2, alpha = 0.3) +
              geom_smooth(aes(colour = party, fill = party), method = "loess") +
              scale_colour_manual(values = party.colours) +
              scale_fill_manual(values = party.colours)
@@ -345,13 +346,14 @@ server <- function(input, output) {
              scale_colour_manual(values = party.colours) +
              scale_fill_manual(values = party.colours) +
              facet_wrap(~party) +
-             theme(legend.position = "none")
+             theme(legend.position = "none") +
+             theme(axis.text = element_text(size = 12))
            )
     }
     
     else if(input$id01 == "Markering af institutter" & input$id03 == "TRUE") {
       plot(p1() +
-             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 3) +
+             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 2) +
              geom_smooth(method = "loess", color = "grey55") +
              scale_colour_brewer(palette="Paired") +
              scale_shape_manual(values = c(16,0,18,2,3,4,17,1)) +
@@ -393,7 +395,7 @@ server <- function(input, output) {
     
     if(input$id02 == "Samlet graf" & input$id04 == "FALSE") {
       plot(p2() +
-             geom_point(aes(colour = coalition), alpha = 0.3, stroke = NA) +
+             geom_point(aes(colour = coalition), size = 2, alpha = 0.3) +
              geom_smooth(aes(colour = coalition), se = FALSE, method = "loess") +
              geom_hline(yintercept = 50, colour="#990000", linetype="dashed") +
              scale_colour_manual(values = c("blue", "red"))
@@ -402,7 +404,7 @@ server <- function(input, output) {
     
     else if(input$id02 == "Graf opdelt på blokke" & input$id04 == "FALSE") {
       plot(p2() +
-             geom_point(aes(colour = coalition), alpha = 0.3, stroke = NA) +
+             geom_point(aes(colour = coalition), size = 2, alpha = 0.3) +
              geom_smooth(aes(colour = coalition), se = FALSE, method = "loess") +
              geom_hline(yintercept = 50, colour="#990000", linetype="dashed") +
              scale_colour_manual(values = c("blue", "red")) +
@@ -413,7 +415,7 @@ server <- function(input, output) {
     
     else if(input$id02 == "Markering af institutter" & input$id04 == "FALSE") {
       plot(p2() +
-             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 3) +
+             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 2) +
              geom_smooth(se = FALSE, method = "loess", color = "grey55") +
              scale_colour_brewer(palette="Paired") +
              scale_shape_manual(values = c(16,0,18,2,3,4,17,1)) +
@@ -423,7 +425,7 @@ server <- function(input, output) {
     
     else if(input$id02 == "Samlet graf" & input$id04 == "TRUE") {
       plot(p2() +
-             geom_point(aes(colour = coalition), alpha = 0.3, stroke = NA) +
+             geom_point(aes(colour = coalition), size = 2, alpha = 0.3) +
              geom_smooth(aes(colour = coalition, fill = coalition), method = "loess") +
              geom_hline(yintercept = 50, colour="#990000", linetype="dashed") +
              scale_colour_manual(values = c("blue", "red")) +
@@ -433,7 +435,7 @@ server <- function(input, output) {
     
     else if(input$id02 == "Graf opdelt på blokke" & input$id04 == "TRUE") {
       plot(p2() +
-             geom_point(aes(colour = coalition), alpha = 0.3, stroke = NA) +
+             geom_point(aes(colour = coalition), size = 2, alpha = 0.3) +
              geom_smooth(aes(colour = coalition, fill = coalition), method = "loess") +
              geom_hline(yintercept = 50, colour="#990000", linetype="dashed") +
              scale_colour_manual(values = c("blue", "red")) +
@@ -445,7 +447,7 @@ server <- function(input, output) {
     
     else if(input$id02 == "Markering af institutter" & input$id04 == "TRUE") {
       plot(p2() +
-             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 3) +
+             geom_point(aes(colour = pollingfirm, shape = pollingfirm), size = 2) +
              geom_smooth(method = "loess", color = "grey55") +
              scale_colour_brewer(palette="Paired") +
              scale_shape_manual(values = c(16,0,18,2,3,4,17,1)) +
@@ -457,7 +459,7 @@ server <- function(input, output) {
   # Generate housePlot ----
   output$housePlot <- renderPlot({
     ggplot(dta.house(), aes(pollingfirm, diff)) +
-      geom_point(aes(colour = sign), size = 3) +
+      geom_point(aes(colour = sign), size = 2) +
       geom_linerange(aes(ymin = left, ymax = right, colour = sign)) +
       geom_hline(yintercept = 0, colour="#990000", linetype="dashed") +
       facet_wrap(~party) +
