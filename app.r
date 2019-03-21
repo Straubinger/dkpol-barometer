@@ -15,6 +15,8 @@ if(!require(DT))
 {install.packages("DT")}
 if(!require(Cairo))
 {install.packages("Cairo")}
+if(!require(httr))
+{install.packages("httr")}
 
 # Load packages ----
 library(shiny)
@@ -24,6 +26,7 @@ library(tidyverse)
 library(RCurl)
 library(DT)
 library(Cairo)
+library(httr)
 
 # Load and restructure dataset from GitHub ----
 dta <- read.csv(text=getURL("https://raw.githubusercontent.com/erikgahner/polls/master/polls.csv")) %>% 
@@ -79,7 +82,7 @@ ui <- dashboardPage(
   skin = "black",
   
   # Header with app title and links  ----
-  dashboardHeader(title = HTML(paste(icon("poll"), "DKpol Barometer")),
+  dashboardHeader(title = "DKpol Barometer",
                   
                   # Link to source code on GitHub ----
                   tags$li(class = "dropdown",
