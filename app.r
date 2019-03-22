@@ -117,7 +117,7 @@ ui <- dashboardPage(
                      selectInput("party",
                                  label = "Partier",
                                  selected = c("Socialdemokratiet", "Radikale Venstre", "Konservative", 
-                                              "Nye Borgerlige", "SF", "Liberal Alliance",
+                                              "Nye Borgerlige", "Klaus Riskær Pedersen", "SF", "Liberal Alliance", "Kristendemokraterne",
                                               "Dansk Folkeparti", "Venstre", "Enhedslisten", 
                                               "Alternativet"), 
                                  choices = party.name,
