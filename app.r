@@ -1,32 +1,11 @@
 #* Define global parameters ----
 
-# Install packages if not already installed ----
-if(!require(shiny))
-{install.packages("shiny")}
-if(!require(shinydashboard))
-{install.packages("shinydashboard")}
-if(!require(shinyWidgets))
-{install.packages("shinyWidgets")}
-if(!require(tidyverse))
-{install.packages("tidyverse")}
-if(!require(RCurl))
-{install.packages("RCurl")}
-if(!require(DT))
-{install.packages("DT")}
-if(!require(Cairo))
-{install.packages("Cairo")}
-if(!require(httr))
-{install.packages("httr")}
+# Install and load packages ----
+if(!require(pacman))
+{install.packages("pacman")}
 
 # Load packages ----
-library(shiny)
-library(shinydashboard)
-library(shinyWidgets)
-library(tidyverse)
-library(RCurl)
-library(DT)
-library(Cairo)
-library(httr)
+pacman::p_load(shiny, shinydashboard, shinyWidgets, tidyverse, RCurl, DT, Cairo, httr)
 
 # Load and restructure dataset from GitHub ----
 dta <- read.csv(text=getURL("https://raw.githubusercontent.com/erikgahner/polls/master/polls.csv")) %>% 
